@@ -16,6 +16,7 @@ require("reflect-metadata");
 const requiredMetadataKey = Symbol("required");
 //定义一个类装饰器
 const classDecorator = (constructor) => {
+    console.log("类装饰器");
     constructor.prototype.members = [
         {
             name: "高启强",
@@ -30,11 +31,12 @@ const methodDecorator = (target, propertyKey, descriptor) => {
 };
 //定义一个属性装饰器
 const doNothing = (target, propertyKey) => {
-    console.log("target: ", target);
-    console.log("propertyKey: ", propertyKey);
+    console.log("属性装饰器");
+    //do nothing
 };
 //定义一个参数装饰器
 const required = (target, propertyKey, parameterIndex) => {
+    console.log("参数装饰器");
     //需要验证的参数序号
     const requiredParams = [];
     requiredParams.push(parameterIndex);
@@ -42,6 +44,7 @@ const required = (target, propertyKey, parameterIndex) => {
 };
 //定义一个方法装饰器
 const validateDecorator = (target, propertyKey, descriptor) => {
+    console.log("方法装饰器");
     let method = descriptor.value;
     descriptor.value = function () {
         const requiredParams = Reflect.getMetadata(requiredMetadataKey, target, propertyKey) || [];
@@ -56,9 +59,25 @@ const validateDecorator = (target, propertyKey, descriptor) => {
         return method.apply(this, arguments);
     };
 };
+//定义一个访问器装饰器工厂函数
+const configurable = (value) => {
+    console.log("访问器装饰器");
+    return function (target, propertyKey, descriptor) {
+        descriptor.configurable = value;
+    };
+};
 let Greeter = class Greeter {
     constructor(message = "风浪越大鱼越贵！") {
         this.greeting = message;
+        this.helloWord = "什么档次，跟我用一样的电视机？";
+    }
+    /**
+     * 注意  TypeScript不允许同时装饰一个成员的 get 和 set 访问器。
+     * 取而代之的是，一个成员的所有装饰的必须应用在文档顺序的第一个访问器上。
+     * 这是因为，在装饰器应用于一个属性描述符时，它联合了get和set访问器，而不是分开声明的。
+     * */
+    get helloWordTxt() {
+        return this.helloWord;
     }
     findName(name) {
         const members = this.members || [];
@@ -79,6 +98,11 @@ __decorate([
     __metadata("design:type", String)
 ], Greeter.prototype, "greeting", void 0);
 __decorate([
+    configurable(false),
+    __metadata("design:type", Object),
+    __metadata("design:paramtypes", [])
+], Greeter.prototype, "helloWordTxt", null);
+__decorate([
     validateDecorator,
     __param(0, required),
     __metadata("design:type", Function),
@@ -96,7 +120,6 @@ Greeter = __decorate([
     __metadata("design:paramtypes", [String])
 ], Greeter);
 const greeter = new Greeter();
-// @ts-ignore
-greeter.findName(); //throw new Error("Missing required argument.");
+greeter.findName('高启强');
 greeter.greet();
 greeter.greet = () => "Hello"; //会提示 TypeError: Cannot assign to read only property 'greet' of object '#<Greeter>'
