@@ -8,43 +8,83 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 require("reflect-metadata");
-const formatMetadataKey = Symbol("format");
-function format(formatString) {
-    return Reflect.metadata(formatMetadataKey, formatString);
-}
-function getFormat(target, propertyKey) {
-    return Reflect.getMetadata(formatMetadataKey, target, propertyKey);
-}
-let introduction = {
-    name: "victor",
-    company: "jinhai",
-};
+const requiredMetadataKey = Symbol("required");
 //定义一个类装饰器
 const classDecorator = (constructor) => {
-    Object.freeze(constructor);
-    Object.freeze(constructor.prototype);
+    constructor.prototype.members = [
+        {
+            name: "高启强",
+            company: "京海建工集团",
+        },
+    ];
 };
 //定义一个方法装饰器
 const methodDecorator = (target, propertyKey, descriptor) => {
-    const method = descriptor.value;
-    method();
-    console.log('我是方法装饰器附加的功能');
+    //设置Greeter.greet方法不可以被修改
+    descriptor.writable = false;
+};
+//定义一个属性装饰器
+const doNothing = (target, propertyKey) => {
+    console.log("target: ", target);
+    console.log("propertyKey: ", propertyKey);
+};
+//定义一个参数装饰器
+const required = (target, propertyKey, parameterIndex) => {
+    //需要验证的参数序号
+    const requiredParams = [];
+    requiredParams.push(parameterIndex);
+    Reflect.defineMetadata(requiredMetadataKey, requiredParams, target, propertyKey);
+};
+//定义一个方法装饰器
+const validateDecorator = (target, propertyKey, descriptor) => {
+    let method = descriptor.value;
+    descriptor.value = function () {
+        const requiredParams = Reflect.getMetadata(requiredMetadataKey, target, propertyKey) || [];
+        if (requiredParams.length) {
+            for (let parameterIndex of requiredParams) {
+                if (parameterIndex >= arguments.length ||
+                    arguments[parameterIndex] === undefined) {
+                    throw new Error("Missing required argument.");
+                }
+            }
+        }
+        return method.apply(this, arguments);
+    };
 };
 let Greeter = class Greeter {
-    greeting;
-    constructor(message) {
+    constructor(message = "风浪越大鱼越贵！") {
         this.greeting = message;
     }
+    findName(name) {
+        const members = this.members || [];
+        const member = members.find((item) => item.name === name);
+        if (member) {
+            console.log(member);
+        }
+        else {
+            console.log("您查找的用户不存在!");
+        }
+    }
     greet() {
-        console.log(`Hello, ${this.greeting.name}!`);
+        console.log(this.greeting);
     }
 };
 __decorate([
-    format("Hello, %s"),
-    __metadata("design:type", Object)
+    doNothing,
+    __metadata("design:type", String)
 ], Greeter.prototype, "greeting", void 0);
+__decorate([
+    validateDecorator,
+    __param(0, required),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], Greeter.prototype, "findName", null);
 __decorate([
     methodDecorator,
     __metadata("design:type", Function),
@@ -53,8 +93,10 @@ __decorate([
 ], Greeter.prototype, "greet", null);
 Greeter = __decorate([
     classDecorator,
-    __metadata("design:paramtypes", [Object])
+    __metadata("design:paramtypes", [String])
 ], Greeter);
-const greeter = new Greeter(introduction);
+const greeter = new Greeter();
+// @ts-ignore
+greeter.findName(); //throw new Error("Missing required argument.");
 greeter.greet();
-greeter.greet = () => "Hello"; //会提示 TypeError: Cannot assign to read only property 'greet' of object '#<Greeter>' 禁止修改greet对象
+greeter.greet = () => "Hello"; //会提示 TypeError: Cannot assign to read only property 'greet' of object '#<Greeter>'
